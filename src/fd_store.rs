@@ -2,7 +2,7 @@ use std::os::fd::{AsRawFd, BorrowedFd};
 
 use systemd::{
     Error,
-    daemon::{STATE_FDNAME, STATE_FDSTORE, pid_notify_with_fds},
+    daemon::{STATE_FDNAME, STATE_FDSTORE, STATE_FDSTOREREMOVE, pid_notify_with_fds},
 };
 
 /// Struct holding the data needed to store the
@@ -34,6 +34,29 @@ pub fn store_fd<'store, 'fd>(StoreFd { fd, name }: StoreFd<'store, 'fd>) -> Resu
         false,
         [&(STATE_FDSTORE, "1"), &(STATE_FDNAME, name)].into_iter(),
         &[fd.as_raw_fd()],
+    );
+
+    match output {
+        Ok(_) => Ok(()),
+        Err(err) => Err(err),
+    }
+}
+
+/// Removes an FD from systemd's FD store.
+///
+/// The FD is not required, just provide the name.
+///
+/// For example if the service puts all connections in the FD store
+/// for robustness against service restarts, the connection should
+/// then be removed once the service is done listening to the connection.
+pub fn remove_fd(name: &str) -> Result<(), Error> {
+    let output = pid_notify_with_fds(
+        std::process::id()
+            .try_into()
+            .expect("Process PID exceeds pid_t value range."),
+        false,
+        [&(STATE_FDSTOREREMOVE, "1"), &(STATE_FDNAME, name)].into_iter(),
+        &[],
     );
 
     match output {
