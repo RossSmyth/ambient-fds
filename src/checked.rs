@@ -104,6 +104,18 @@ impl FdKind {
             Self::Unknown(fd)
         }
     }
+
+    pub fn into_fd(self) -> BorrowedFd<'static> {
+        match self {
+            FdKind::Unknown(fd)
+            | FdKind::Special(fd)
+            | FdKind::File(fd)
+            | FdKind::MessageQueue(fd)
+            | FdKind::Unix(fd)
+            | FdKind::Fifo(fd)
+            | FdKind::Berkely(fd) => fd,
+        }
+    }
 }
 
 fn is_fifo(fd: BorrowedFd<'static>) -> bool {
