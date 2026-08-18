@@ -2,6 +2,13 @@
 name = "ambients"
 version = "0.1.0"
 edition = "2024"
+license = "BlueOak-1.0.0"
+readme = "README.md"
+repository = "https://github.com/RossSmyth/ambients/"
+description = "Easily systemd ambient capablities"
+categories = [ "filesystem", "os::linux-apis", "api-bindings" ]
+keywords = [ "systemd", "capabilities", "hardening" ]
+exclude = [ "*.nix", "/npins" ]
 
 [dependencies]
 systemd = { version = "0.10.1", optional = true }
