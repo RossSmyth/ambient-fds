@@ -1,4 +1,4 @@
-# Abient-fd
+# Ambients
 
 Use systemd's [OpenFile](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#OpenFile=) and [FD Store](https://systemd.io/FILE_DESCRIPTOR_STORE/) easily.
 For restart tolerance the FD store may be of significant interest as you can persist FDs across service starts, and even `kexec` events.
