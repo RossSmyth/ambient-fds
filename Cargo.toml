@@ -11,3 +11,5 @@ systemd = { version = "0.10.1", optional = true }
 default = [ "checked_api" ]
 checked_api = [ "dep:systemd", "dep:nix" ]
 
+[[example]]
+name = "basic"
