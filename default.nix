@@ -16,11 +16,16 @@ rustPlatform.buildRustPackage {
       ./src
       ./Cargo.lock
       ./Cargo.toml
+      ./examples
     ];
   };
 
   cargoLock.lockFile = ./Cargo.lock;
 
+  cargoBuildFlags = [
+    "--lib"
+  ];
+  
   nativeBuildInputs = with pkgs; [
     pkg-config
   ];
