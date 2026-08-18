@@ -14,8 +14,9 @@ exclude = [ "*.nix", "/npins" ]
 systemd = { version = "0.10.1", optional = true }
 
 [features]
-default = [ "checked_api" ]
+default = [ "checked_api", "fd_store" ]
 checked_api = [ "dep:systemd"]
+fd_store = [ "dep:systemd" ]
 
 [[example]]
 name = "basic"
