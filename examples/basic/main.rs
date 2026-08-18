@@ -16,7 +16,7 @@ pub fn main() {
         "FD name should be 'basic', found {fd:?}"
     );
 
-    let fd = fd.into_fd();
+    let fd = fd.into_kind();
 
     let fd = fd.into_fd();
     let owned = fd.try_clone_to_owned().unwrap();

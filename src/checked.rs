@@ -24,7 +24,7 @@ impl AmbientFd {
         &self.name
     }
 
-    pub fn into_fd(self) -> FdKind {
+    pub fn into_kind(self) -> FdKind {
         self.fd
     }
 }
