@@ -1,4 +1,3 @@
-use nix::sys::stat::{SFlag, fstat};
 use std::{
     env,
     ffi::CStr,
@@ -103,7 +102,6 @@ impl FdKind {
         match self {
             FdKind::Unknown(fd)
             | FdKind::Special(fd)
-            | FdKind::File(fd)
             | FdKind::MessageQueue(fd)
             | FdKind::Unix(fd)
             | FdKind::Fifo(fd)

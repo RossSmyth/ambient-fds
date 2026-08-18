@@ -7,7 +7,7 @@ let
   inherit (pkgs) rustPlatform lib;
 in
 rustPlatform.buildRustPackage {
-  pname = "ambient-fds";
+  pname = "ambients";
   version = "0.0.1";
 
   src = lib.fileset.toSource {

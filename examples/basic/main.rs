@@ -3,10 +3,10 @@
 
 use std::io::Read;
 
-use ambient_fd::FdName;
+use ambients::FdName;
 
 pub fn main() {
-    let mut fds = unsafe { ambient_fd::get_ambient_fds() };
+    let mut fds = unsafe { ambients::get_ambient_fds() };
 
     assert!(fds.len() == 1, "One FD is required, got {fds:?}");
     let fd = fds.pop().unwrap();
@@ -17,10 +17,6 @@ pub fn main() {
     );
 
     let fd = fd.into_fd();
-    // assert!(
-    //     matches!(fd, ambient_fd::FdKind::File(_)),
-    //     "The FD proivded must be a regular file FD, found: {fd:?}"
-    // );
 
     let fd = fd.into_fd();
     let owned = fd.try_clone_to_owned().unwrap();
