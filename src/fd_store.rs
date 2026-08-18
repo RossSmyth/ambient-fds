@@ -1,3 +1,16 @@
+//! Send and receive FDs to/from systemd's file descriptor store.
+//! <https://systemd.io/FILE_DESCRIPTOR_STORE/>
+//!
+//! This requires that the service is started with the `FileDescriptorStoreMax` attribute
+//! in the unit configuration file to be non-zero.
+//!
+//! <div class="warning">
+//! The systemd API is asynchronous, and does not have a general way
+//! to known if an FD was successfully stored or not. This should
+//! only be used as a best effort API, and a fallback should always
+//! be ready in case of a failure. One example is if the service
+//! is started without an FD store.
+//! </div>
 use std::os::fd::{AsRawFd, BorrowedFd};
 
 use systemd::{
@@ -18,8 +31,7 @@ impl<'store, 'fd> StoreFd<'store, 'fd> {
     }
 }
 
-/// Stores an FD in systemd's FD store
-/// https://systemd.io/FILE_DESCRIPTOR_STORE/
+/// Stores an FD in systemd's FD store.
 ///
 /// This API requires a name, because it is much more useful that way.
 ///
