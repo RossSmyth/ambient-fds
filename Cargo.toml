@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-nix = { version = "0.31.3", features = ["fs"] }
-systemd = "0.10.1"
+nix = { version = "0.31.3", features = ["fs"], optional = true}
+systemd = { version = "0.10.1", optional = true }
+
+[features]
+default = [ "checked_api" ]
+checked_api = [ "dep:systemd", "dep:nix" ]
+
