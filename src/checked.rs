@@ -148,12 +148,12 @@ fn is_special(fd: BorrowedFd<'static>) -> bool {
 ///
 /// Note: This function purposefully clears systemd-managed environment variables.
 ///
-/// Safety:
+/// # Safety
 /// * Nothing else can write to environment variables before this function is called.
 /// * systemd must be the provider of the FDs
 pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
     let fds = match systemd::daemon::listen_fds(false) {
-        Ok(fds) if fds.len() == 0 => return Vec::new(),
+        Ok(fds) if fds.is_empty() => return Vec::new(),
         Ok(fds) => fds,
         Err(err) => panic!("Unable to get FDs:\n{:?}", err),
     };
@@ -172,7 +172,7 @@ pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
     }
 
     fds.iter()
-        .zip(names.into_iter())
+        .zip(names)
         .map(|(raw_fd, name)| AmbientFd {
             name: match name {
                 "connection" => FdName::Connection,
@@ -181,7 +181,7 @@ pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
                 name => FdName::Name(name.into()),
             },
             // Safety: It's a valid FD since we got it from systemd
-            fd: unsafe { FdKind::new(raw_fd.into()) },
+            fd: unsafe { FdKind::new(raw_fd) },
         })
         .collect()
 }
