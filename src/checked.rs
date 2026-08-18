@@ -62,6 +62,8 @@ pub enum FdName {
 #[derive(Debug)]
 pub enum FdKind {
     /// SystemV FIFO FD
+    ///
+    /// Files using systemd's `OpenFile` will appear as a fifo FD.
     Fifo(BorrowedFd<'static>),
     /// IPv4 or IPv6 socket FD
     Berkely(BorrowedFd<'static>),
@@ -69,8 +71,6 @@ pub enum FdKind {
     Unix(BorrowedFd<'static>),
     /// Posix message queue FD
     MessageQueue(BorrowedFd<'static>),
-    /// Normal file FD
-    File(BorrowedFd<'static>),
     /// Special FD, like those under /prov and /sys
     Special(BorrowedFd<'static>),
     /// Unable to determine FD type
@@ -94,12 +94,6 @@ impl FdKind {
             Self::MessageQueue(fd)
         } else if is_special(fd) {
             Self::Special(fd)
-        } else if let Ok(mode) = fstat(fd)
-            && SFlag::from_bits_truncate(mode.st_mode)
-                .contains(SFlag::S_IFDIR | SFlag::S_IFREG | SFlag::S_IFLNK)
-        {
-            // We shall consider a File to be a symlink, directory, or regular file
-            Self::File(fd)
         } else {
             Self::Unknown(fd)
         }
