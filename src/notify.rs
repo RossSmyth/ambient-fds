@@ -43,12 +43,12 @@ impl SysDSocket {
             if data.add_fds(to_raw_fds(fds)) {
                 break data;
             } else {
-                multiple = multiple + 1;
+                multiple += 1;
             }
         };
 
         let io: Vec<_> = message
-            .into_iter()
+            .iter()
             .map(|&str| IoSlice::new(str.as_bytes()))
             .collect();
 
@@ -56,7 +56,7 @@ impl SysDSocket {
     }
 
     pub(crate) fn notify(&self, message: &[&str]) {
-        self.notify_fds(message, &mut [])
+        self.notify_fds(message, &[])
     }
 
     pub(crate) fn notify_single(&self, message: &str) {
@@ -117,7 +117,7 @@ impl SysDSocket {
 
     /// Should be used when referring to a child process
     pub fn send_mainpidfd(&self, pidfd: &PidFd) {
-        self.notify_fds(&[main_pidfd()], &mut [pidfd.as_fd()]);
+        self.notify_fds(&[main_pidfd()], &[pidfd.as_fd()]);
     }
 
     /// Corresponds to WATCHDOG=1
@@ -145,7 +145,7 @@ impl SysDSocket {
     }
 
     pub fn send_barrier(&self, fd: BorrowedFd) {
-        self.notify_fds(&[barrier()], &mut [fd]);
+        self.notify_fds(&[barrier()], &[fd]);
     }
 }
 

@@ -71,9 +71,9 @@ pub fn get_raw_ambient_fds() -> Result<Vec<RawAmbientFd>, EnvVarError> {
         Err(_) => {
             return Err(EnvVarError {
                 name: "LISTEN_FDS".to_string(),
-                kind: EnvVarErrorKind::InvalidFormat(format!(
-                    "Total number of FDs exceed to possible total."
-                )),
+                kind: EnvVarErrorKind::InvalidFormat(
+                    "Total number of FDs exceed to possible total.".to_string(),
+                ),
             });
         }
     };
@@ -109,7 +109,7 @@ pub fn get_raw_ambient_fds() -> Result<Vec<RawAmbientFd>, EnvVarError> {
     Ok((SD_LISTEN_FDS_START..)
         .skip(1) // The start is not counted as an FD
         .take(fd_count)
-        .zip(name_list.into_iter())
+        .zip(name_list)
         .map(|(fd, name)| RawAmbientFd {
             fd: fd.try_into().unwrap(),
             name,
