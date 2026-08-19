@@ -1,17 +1,16 @@
-mod raw;
-
 use std::num::IntErrorKind;
-
-pub use raw::*;
 
 #[cfg(feature = "checked_api")]
 mod checked;
+#[cfg(feature = "fd_store")]
+pub mod fd_store;
+#[cfg(all(feature = "nightly", feature = "notify"))]
+pub mod notify;
+mod raw;
 
 #[cfg(feature = "checked_api")]
 pub use checked::*;
-
-#[cfg(feature = "fd_store")]
-pub mod fd_store;
+pub use raw::*;
 
 #[non_exhaustive]
 #[derive(Debug, Clone)]
