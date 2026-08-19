@@ -6,7 +6,7 @@ use std::io::Read;
 use ambients::FdName;
 
 pub fn main() {
-    let mut fds = unsafe { ambients::get_ambient_fds() };
+    let mut fds = unsafe { ambients::get_ambient_fds() }.unwrap();
 
     assert!(fds.len() == 1, "One FD is required, got {fds:?}");
     let fd = fds.pop().unwrap();
@@ -19,9 +19,8 @@ pub fn main() {
     let fd = fd.into_kind();
 
     let fd = fd.into_fd();
-    let owned = fd.try_clone_to_owned().unwrap();
 
-    let mut file = std::fs::File::from(owned);
+    let mut file = std::fs::File::from(fd);
 
     let mut output = String::new();
     file.read_to_string(&mut output).unwrap();

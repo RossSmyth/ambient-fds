@@ -9,6 +9,7 @@ readonly scriptDir="$(dirname -- "$(realpath -- "$0")")"
 
 exec systemd-run \
   --wait --pty --collect \
+  --user \
   -p OpenFile="$scriptDir/basic.txt:basic:read-only" \
-  "$scriptDir/../target/debug/examples/basic"
+  "$scriptDir/../../target/debug/examples/basic"
 
