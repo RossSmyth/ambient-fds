@@ -76,6 +76,16 @@ OpenFile=/run/postgres/server.sock:database
 # For sockets, use an associated .socket unit file.
 # There is a lot of documentation that can explain this better
 # than I elsewhere.
+
+# If you want to use the FD Store
+# 5 FDs can be stored at max.
+ FileDescriptorStoreMax=5
+
+# The lifetime of the FDs
+# yes = Tied to the lifetime of systemd itself. Will only be closed on a hard system restart/shutdown. Survives soft-restarts and kexec
+# restart = Preserves FDs across service restarts, but not if it is stopped or failed
+# on-success = Same as yes, except FDs are discarded if the service enters a failed state
+FileDescriptorStorePreserve=yes
  
 [Install]
 WantedBy=multi-user.target
