@@ -1,8 +1,8 @@
-mod unchecked;
+mod raw;
 
 use std::num::IntErrorKind;
 
-pub use unchecked::*;
+pub use raw::*;
 
 #[cfg(feature = "checked_api")]
 mod checked;
