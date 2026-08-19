@@ -1,10 +1,19 @@
 {
   system ? builtins.currentSystem or "x86_64-linux",
   inputs ? import ./npins { },
-  pkgs ? import inputs.nixpkgs { inherit system; },
+  pkgs ? import inputs.nixpkgs {
+    inherit system;
+    overlays = [ (import inputs.rust-overlay) ];
+  },
 }:
 let
-  inherit (pkgs) rustPlatform lib;
+  inherit (pkgs) makeRustPlatform lib;
+
+  toolchain = pkgs.rust-bin.nightly.latest.default;
+  rustPlatform = makeRustPlatform {
+    rustc = toolchain;
+    cargo = toolchain;
+  };
 in
 rustPlatform.buildRustPackage {
   pname = "ambients";
@@ -25,7 +34,7 @@ rustPlatform.buildRustPackage {
   cargoBuildFlags = [
     "--lib"
   ];
-  
+
   nativeBuildInputs = with pkgs; [
     pkg-config
   ];
@@ -33,4 +42,8 @@ rustPlatform.buildRustPackage {
   buildInputs = with pkgs; [
     systemdLibs
   ];
+
+  passthru = {
+    inherit toolchain;
+  };
 }
