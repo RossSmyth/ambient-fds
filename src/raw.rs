@@ -112,7 +112,7 @@ pub fn get_raw_ambient_fds() -> Result<Vec<RawAmbientFd>, EnvVarError> {
         .zip(name_list.into_iter())
         .map(|(fd, name)| RawAmbientFd {
             fd: fd.try_into().unwrap(),
-            name: name,
+            name,
         })
         .collect())
 }

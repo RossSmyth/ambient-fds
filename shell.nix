@@ -8,12 +8,16 @@
   ambients ? import ./. { inherit system inputs pkgs; },
 }:
 pkgs.mkShell {
-  packages = with pkgs; [
-    (ambients.toolchain.override {
-      extensions = [
-        "rust-src"
-        "rust-analyzer"
-      ];
-    })
-  ];
+  packages =
+    with pkgs;
+    [
+      (ambients.toolchain.override {
+        extensions = [
+          "rust-src"
+          "rust-analyzer"
+        ];
+      })
+    ]
+    ++ ambients.buildInputs
+    ++ ambients.nativeBuildInputs;
 }

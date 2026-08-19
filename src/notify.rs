@@ -31,7 +31,7 @@ impl SysDSocket {
         Some(Self(connection))
     }
 
-    fn notify_fds(&self, message: &[&str], fds: &[BorrowedFd]) {
+    pub(crate) fn notify_fds(&self, message: &[&str], fds: &[BorrowedFd]) {
         let mut multiple = 2;
         let mut buf = vec![];
 
@@ -55,11 +55,11 @@ impl SysDSocket {
         let _ = self.0.send_vectored_with_ancillary(&io, &mut data);
     }
 
-    fn notify(&self, message: &[&str]) {
+    pub(crate) fn notify(&self, message: &[&str]) {
         self.notify_fds(message, &mut [])
     }
 
-    fn notify_single(&self, message: &str) {
+    pub(crate) fn notify_single(&self, message: &str) {
         self.notify(&[message])
     }
 
@@ -242,4 +242,20 @@ fn barrier() -> &'static str {
 fn to_raw_fds<'a>(fds: &'a [BorrowedFd<'a>]) -> &'a [RawFd] {
     // Safety: BorrowedFd is transparent over RawFd
     unsafe { slice::from_raw_parts(fds.as_ptr() as _, fds.len()) }
+}
+
+pub(crate) fn fd_store() -> &'static str {
+    "FDSTORE=1"
+}
+
+pub(crate) fn fd_store_remove() -> &'static str {
+    "FDSTORE=1"
+}
+
+pub(crate) fn fd_name(name: &str) -> String {
+    format!("FDNAME={name}")
+}
+
+pub(crate) fn fd_poll() -> &'static str {
+    "FDPOLL=0"
 }

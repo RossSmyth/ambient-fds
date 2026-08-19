@@ -15,11 +15,12 @@ nix = { version = "0.31.3", features = ["time"], optional = true }
 systemd = { version = "0.10.1", optional = true }
 
 [features]
-default = [ "checked_api", "fd_store" ]
-checked_api = [ "dep:systemd"]
-fd_store = [ "dep:systemd" ]
+default = [ "fd_store", "checked_api"]
+checked_api = [ "libsystemd"]
+fd_store = [ ]
 nightly = []
 notify = [ "dep:nix" ]
+libsystemd = [ "dep:systemd" ]
 
 [[example]]
 name = "basic"
