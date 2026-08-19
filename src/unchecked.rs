@@ -1,4 +1,9 @@
-use std::{env, os::fd::RawFd};
+use std::{
+    env::{self, VarError},
+    os::{fd::RawFd, unix::ffi::OsStringExt},
+};
+
+use crate::{EnvVarError, EnvVarErrorKind};
 
 /// Unprocessed or validated FDs
 pub struct RawAmbientFd {
@@ -29,33 +34,54 @@ const SD_LISTEN_FDS_START: i32 = 3;
 /// through systemd's API to ensure the FDs are chill guys, and
 /// lets the user know what type of FD they are.
 ///
-/// If there are any errors, for example the environment variables are not
-/// formatted correctly, it returns an empty Vec.
-///
-/// This does not always mean systemd didn't provide something,
-/// but can also mean that this process was not run by systemd.
-pub fn get_raw_ambient_fds() -> Vec<RawAmbientFd> {
-    let Some(raw_fd_count) = env::var_os("LISTEN_FDS") else {
-        return Vec::new();
-    };
-    // This must be UTF-8
-    let Some(raw_fd_count) = raw_fd_count.to_str() else {
-        return Vec::new();
-    };
-    let Ok(fd_count) = raw_fd_count.parse() else {
-        return Vec::new();
+/// Systemd docs recommends, essentially, to ignore the exact error
+/// and just go to a fallback (if possible) if this fails.
+pub fn get_raw_ambient_fds() -> Result<Vec<RawAmbientFd>, EnvVarError> {
+    let raw_fd_count = match env::var("LISTEN_FDS") {
+        Ok(raw_fd_count) => raw_fd_count,
+        Err(VarError::NotPresent) => {
+            return Err(crate::EnvVarError {
+                name: "LISTEN_FDS".to_string(),
+                kind: EnvVarErrorKind::NotFound,
+            });
+        }
+        Err(VarError::NotUnicode(str)) => {
+            return Err(EnvVarError {
+                name: "LISTEN_FDS".to_string(),
+                kind: EnvVarErrorKind::NotUnicode(str.into_vec()),
+            });
+        }
     };
 
-    let Some(raw_names) = env::var_os("LISTEN_FDNAMES") else {
-        return Vec::new();
+    let fd_count: usize = match raw_fd_count.parse() {
+        Ok(fd_count) => fd_count,
+        Err(err) => {
+            return Err(EnvVarError {
+                name: "LISTEN_FDS".to_string(),
+                kind: EnvVarErrorKind::NotANumber(*err.kind()),
+            });
+        }
     };
-    // I think these have to be UTF-8
-    let Some(raw_names) = raw_names.to_str() else {
-        return Vec::new();
+
+    let raw_names = match env::var("LISTEN_FDNAMES") {
+        Ok(raw_names) => raw_names,
+        Err(VarError::NotPresent) => {
+            return Err(crate::EnvVarError {
+                name: "LISTEN_FDNAMES".to_string(),
+                kind: EnvVarErrorKind::NotFound,
+            });
+        }
+        Err(VarError::NotUnicode(str)) => {
+            return Err(EnvVarError {
+                name: "LISTEN_FDNAMES".to_string(),
+                kind: EnvVarErrorKind::NotUnicode(str.into_vec()),
+            });
+        }
     };
+
     let name_list = raw_names.split(":");
 
-    (SD_LISTEN_FDS_START..)
+    Ok((SD_LISTEN_FDS_START..)
         .skip(1) // The start is not counted as an FD
         .take(fd_count)
         .zip(name_list)
@@ -63,5 +89,5 @@ pub fn get_raw_ambient_fds() -> Vec<RawAmbientFd> {
             fd,
             name: name.into(),
         })
-        .collect()
+        .collect())
 }

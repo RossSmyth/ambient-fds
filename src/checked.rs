@@ -1,7 +1,7 @@
 use std::{
     env,
     ffi::CStr,
-    os::fd::{AsRawFd, BorrowedFd, RawFd},
+    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
 };
 use systemd::daemon::Listening;
 
@@ -63,42 +63,42 @@ pub enum FdKind {
     /// SystemV FIFO FD
     ///
     /// Files using systemd's `OpenFile` will appear as a fifo FD.
-    Fifo(BorrowedFd<'static>),
+    Fifo(OwnedFd),
     /// IPv4 or IPv6 socket FD
-    Berkely(BorrowedFd<'static>),
+    Berkely(OwnedFd),
     /// Unix domain socket FD
-    Unix(BorrowedFd<'static>),
+    Unix(OwnedFd),
     /// Posix message queue FD
-    MessageQueue(BorrowedFd<'static>),
+    MessageQueue(OwnedFd),
     /// Special FD, like those under /prov and /sys
-    Special(BorrowedFd<'static>),
+    Special(OwnedFd),
     /// Unable to determine FD type
-    Unknown(BorrowedFd<'static>),
+    Unknown(OwnedFd),
 }
 
 impl FdKind {
-    // Safety: Must be a valid FD that is around for the whole process
+    // Safety: Must be a valid FD that is owned by this.
     unsafe fn new(fd: RawFd) -> Self {
-        let fd = unsafe { BorrowedFd::borrow_raw(fd) };
+        let fd = unsafe { OwnedFd::from_raw_fd(fd) };
 
         // Let systemd do most of the checks as it is more comprehensive
         // and robust.
-        if is_fifo(fd) {
+        if is_fifo(fd.as_fd()) {
             Self::Fifo(fd)
-        } else if is_berkely(fd) {
+        } else if is_berkely(fd.as_fd()) {
             Self::Berkely(fd)
-        } else if is_unix(fd) {
+        } else if is_unix(fd.as_fd()) {
             Self::Unix(fd)
-        } else if is_queue(fd) {
+        } else if is_queue(fd.as_fd()) {
             Self::MessageQueue(fd)
-        } else if is_special(fd) {
+        } else if is_special(fd.as_fd()) {
             Self::Special(fd)
         } else {
             Self::Unknown(fd)
         }
     }
 
-    pub fn into_fd(self) -> BorrowedFd<'static> {
+    pub fn into_fd(self) -> OwnedFd {
         match self {
             FdKind::Unknown(fd)
             | FdKind::Special(fd)
@@ -110,11 +110,11 @@ impl FdKind {
     }
 }
 
-fn is_fifo(fd: BorrowedFd<'static>) -> bool {
+fn is_fifo(fd: BorrowedFd) -> bool {
     systemd::daemon::is_fifo(fd.as_raw_fd(), Option::<&CStr>::None).is_ok()
 }
 
-fn is_berkely(fd: BorrowedFd<'static>) -> bool {
+fn is_berkely(fd: BorrowedFd) -> bool {
     systemd::daemon::is_socket_inet(
         fd.as_raw_fd(),
         None,
@@ -125,7 +125,7 @@ fn is_berkely(fd: BorrowedFd<'static>) -> bool {
     .is_ok()
 }
 
-fn is_unix(fd: BorrowedFd<'static>) -> bool {
+fn is_unix(fd: BorrowedFd) -> bool {
     systemd::daemon::is_socket_unix(
         fd.as_raw_fd(),
         None,
@@ -135,11 +135,11 @@ fn is_unix(fd: BorrowedFd<'static>) -> bool {
     .is_ok()
 }
 
-fn is_queue(fd: BorrowedFd<'static>) -> bool {
+fn is_queue(fd: BorrowedFd) -> bool {
     systemd::daemon::is_mq(fd.as_raw_fd(), Option::<&CStr>::None).is_ok()
 }
 
-fn is_special(fd: BorrowedFd<'static>) -> bool {
+fn is_special(fd: BorrowedFd) -> bool {
     systemd::daemon::is_special(fd.as_raw_fd(), Option::<&CStr>::None).is_ok()
 }
 
@@ -148,19 +148,24 @@ fn is_special(fd: BorrowedFd<'static>) -> bool {
 ///
 /// Note: This function purposefully clears systemd-managed environment variables.
 ///
+/// The only error this functino returns is the errono returned by systemd. It will
+/// panic if the environment was set incorrectly as systemd doesn't.
+///
 /// # Safety
-/// * Nothing else can write to environment variables before this function is called.
-/// * systemd must be the provider of the FDs
-pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
+/// * Nothing else can read the FD related environment variables before this call.
+/// * If they are set, the environment variables must have been set solely by systemd
+pub unsafe fn get_ambient_fds() -> Result<Vec<AmbientFd>, std::io::Error> {
     let fds = match systemd::daemon::listen_fds(false) {
-        Ok(fds) if fds.is_empty() => return Vec::new(),
+        Ok(fds) if fds.is_empty() => return Ok(Vec::new()),
         Ok(fds) => fds,
-        Err(err) => panic!("Unable to get FDs:\n{:?}", err),
+        Err(err) => return Err(err),
     };
 
     let raw_names = match env::var("LISTEN_FDNAMES") {
         Ok(names) => names,
-        _ => panic!("Unable to get FD names, systemd should always set this."),
+        Err(err) => panic!(
+            "systemd always sets 'LISTEN_FDNAMES' correctly, and it must be correct at this point.\n{err:?}"
+        ),
     };
     let names = raw_names.split(":");
 
@@ -171,7 +176,8 @@ pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
         env::remove_var("LISTEN_FDNAMES");
     }
 
-    fds.iter()
+    Ok(fds
+        .iter()
         .zip(names)
         .map(|(raw_fd, name)| AmbientFd {
             name: match name {
@@ -183,5 +189,5 @@ pub unsafe fn get_ambient_fds() -> Vec<AmbientFd> {
             // Safety: It's a valid FD since we got it from systemd
             fd: unsafe { FdKind::new(raw_fd) },
         })
-        .collect()
+        .collect())
 }
