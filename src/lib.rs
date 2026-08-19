@@ -1,10 +1,12 @@
+#![cfg_attr(feature = "nightly", feature(unix_socket_ancillary_data, linux_pidfd))]
+
 use std::num::IntErrorKind;
 
 #[cfg(feature = "checked_api")]
 mod checked;
 #[cfg(feature = "fd_store")]
 pub mod fd_store;
-#[cfg(all(feature = "nightly", feature = "notify"))]
+#[cfg(feature = "nightly")]
 pub mod notify;
 mod raw;
 

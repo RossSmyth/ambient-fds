@@ -1,8 +1,16 @@
 use std::{
     env,
-    os::{fd::BorrowedFd, unix::net::UnixDatagram},
+    io::IoSlice,
+    os::{
+        fd::{AsFd, BorrowedFd, RawFd},
+        linux::process::PidFd,
+        unix::net::{SocketAncillary, UnixDatagram},
+    },
+    slice,
     time::Duration,
 };
+
+use nix::time::ClockId;
 
 #[derive(Debug)]
 pub struct SysDSocket(UnixDatagram);
@@ -23,99 +31,121 @@ impl SysDSocket {
         Some(Self(connection))
     }
 
-    fn notify_fds(&mut self, message: &[&str], fds: &[()]) {
-        todo!("Nightly")
+    fn notify_fds(&self, message: &[&str], fds: &[BorrowedFd]) {
+        let mut multiple = 2;
+        let mut buf = vec![];
+
+        let mut data = loop {
+            buf = vec![0; multiple * size_of_val(fds)];
+
+            let mut data = SocketAncillary::new(&mut buf);
+
+            if data.add_fds(to_raw_fds(fds)) {
+                break data;
+            } else {
+                multiple = multiple + 1;
+            }
+        };
+
+        let io: Vec<_> = message
+            .into_iter()
+            .map(|&str| IoSlice::new(str.as_bytes()))
+            .collect();
+
+        let _ = self.0.send_vectored_with_ancillary(&io, &mut data);
     }
 
-    fn notify(&mut self, message: &[&str]) {
-        self.notify_fds(message, &[])
+    fn notify(&self, message: &[&str]) {
+        self.notify_fds(message, &mut [])
     }
 
-    fn notify_single(&mut self, message: &str) {
+    fn notify_single(&self, message: &str) {
         self.notify(&[message])
     }
 
-    pub fn send_ready(&mut self) {
+    pub fn send_ready(&self) {
         self.notify_single(ready());
     }
 
-    pub fn send_reloading(&mut self) {
-        self.notify(&[reloading(), &monotonic_usec(todo!("CLOCK_MONOTONIC"))])
+    pub fn send_reloading(&self) {
+        let time: Duration = nix::time::clock_gettime(ClockId::CLOCK_MONOTONIC)
+            .unwrap()
+            .into();
+
+        self.notify(&[reloading(), &monotonic_usec(time.as_micros())])
     }
 
-    pub fn send_stopping(&mut self) {
+    pub fn send_stopping(&self) {
         self.notify_single(stopping());
     }
 
-    pub fn send_monotonic(&mut self, timestamp: u128) {
+    pub fn send_monotonic(&self, timestamp: u128) {
         self.notify_single(&monotonic_usec(timestamp));
     }
 
-    pub fn send_status(&mut self, state: &str) {
+    pub fn send_status(&self, state: &str) {
         self.notify_single(&status(state))
     }
 
     /// Corresponds to NOTIFYACCESS=
     /// Essentially who is allowed to send messages to the systemd socket.
     /// This API.
-    pub fn send_socket_access(&mut self, state: SocketAccess) {
+    pub fn send_socket_access(&self, state: SocketAccess) {
         self.notify_single(notify_access(state));
     }
 
-    pub fn send_errno(&mut self, error: i32) {
+    pub fn send_errno(&self, error: i32) {
         self.notify_single(&errno(error));
     }
 
-    pub fn send_bus_error(&mut self, error: &str) {
+    pub fn send_bus_error(&self, error: &str) {
         self.notify_single(&bus_error(error));
     }
 
-    pub fn send_varlink_error(&mut self, error: &str) {
+    pub fn send_varlink_error(&self, error: &str) {
         self.notify_single(&varlink_error(error));
     }
 
-    pub fn send_exit_status(&mut self, status: &str) {
+    pub fn send_exit_status(&self, status: &str) {
         self.notify_single(&exit_status(status));
     }
 
     /// Should only be used if sending from the process the PID is referring to.
-    pub fn send_mainpid(&mut self, pid: u32) {
+    pub fn send_mainpid(&self, pid: u32) {
         self.notify_single(&mainpid(pid));
     }
 
     /// Should be used when referring to a child process
-    pub fn send_mainpidfd(&mut self, pidfd: ()) {
-        self.notify_fds(&[main_pidfd()], &[pidfd]);
-        todo!("Actually use PidFd")
+    pub fn send_mainpidfd(&self, pidfd: &PidFd) {
+        self.notify_fds(&[main_pidfd()], &mut [pidfd.as_fd()]);
     }
 
     /// Corresponds to WATCHDOG=1
-    pub fn send_watchdog_update(&mut self) {
+    pub fn send_watchdog_update(&self) {
         self.notify_single(watchdog_update());
     }
 
     /// Corresponds to WATCHDOG=trigger
-    pub fn send_watchdog_trigger(&mut self) {
+    pub fn send_watchdog_trigger(&self) {
         self.notify_single(watchdog_trigger());
     }
 
     /// Corresponds to WATCHDOG_USEC
-    pub fn send_watchdog_timeout(&mut self, timeout: Duration) {
+    pub fn send_watchdog_timeout(&self, timeout: Duration) {
         self.notify_single(&watchdog_timeout(timeout));
     }
 
     /// Corresponds to EXTEND_TIMEOUT_USEC
-    pub fn send_delay_watchdog_timeout(&mut self, timeout: Duration) {
+    pub fn send_delay_watchdog_timeout(&self, timeout: Duration) {
         self.notify_single(&extend_timeout(timeout));
     }
 
-    pub fn send_reset_restart_counters(&mut self) {
+    pub fn send_reset_restart_counters(&self) {
         self.notify_single(restart_reset());
     }
 
-    pub fn send_barrier(&mut self, _: BorrowedFd) {
-        self.notify_fds(&[barrier()], &[()]);
-        todo!("Use FD")
+    pub fn send_barrier(&self, fd: BorrowedFd) {
+        self.notify_fds(&[barrier()], &mut [fd]);
     }
 }
 
@@ -207,4 +237,9 @@ fn restart_reset() -> &'static str {
 
 fn barrier() -> &'static str {
     "BARRIER=1"
+}
+
+fn to_raw_fds<'a>(fds: &'a [BorrowedFd<'a>]) -> &'a [RawFd] {
+    // Safety: BorrowedFd is transparent over RawFd
+    unsafe { slice::from_raw_parts(fds.as_ptr() as _, fds.len()) }
 }
