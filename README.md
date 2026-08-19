@@ -84,4 +84,3 @@ WantedBy=multi-user.target
 ## TODO
 
 * Make more tests/examples
-* Add API for adding FDs to the FD Store(?) Maybe a seperate crate
